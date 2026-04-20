@@ -1,7 +1,9 @@
 CXX      ?= g++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
-PREFIX   ?= /usr/local
+
+PREFIX   ?= /usr
 BINDIR   ?= $(PREFIX)/bin
+
 TARGET   ?= lfspkg
 SRC      ?= lfspkg.cpp
 
