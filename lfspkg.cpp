@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
@@ -629,80 +630,194 @@ build_basename_to_pkg(const std::map<std::string, std::string> &owners) {
     return out;
 }
 
-static PackageSpec parse_meta_file(const fs::path &metaFile) {
+
+static std::vector<std::string> set_to_vec(const std::set<std::string>& s) {
+    return std::vector<std::string>(s.begin(), s.end());
+}
+
+static std::vector<std::string> merge_unique(const std::vector<std::string>& a,
+                                             const std::vector<std::string>& b) {
+    std::set<std::string> merged(a.begin(), a.end());
+    merged.insert(b.begin(), b.end());
+    return set_to_vec(merged);
+}
+
+static std::vector<std::string> vec_diff(const std::vector<std::string>& a,
+                                         const std::vector<std::string>& b) {
+    std::set<std::string> bs(b.begin(), b.end());
+    std::vector<std::string> out;
+    for (const auto& x : a) if (!bs.count(x)) out.push_back(x);
+    return out;
+}
+
+static std::string prompt_line(const std::string& prompt) {
+    std::cout << prompt;
+    std::cout.flush();
+    std::string line;
+    if (!std::getline(std::cin, line)) throw std::runtime_error("aborted");
+    return trim(line);
+}
+
+static std::vector<std::string> detect_runtime_pkg_deps(const PackageDB& db,
+                                                        const fs::path& stage,
+                                                        std::vector<std::string>* unresolved_out = nullptr) {
+    auto owners = db.load_owners();
+    auto byBase = build_basename_to_pkg(owners);
+    std::set<std::string> libs;
+
+    for (fs::recursive_directory_iterator it(stage, fs::directory_options::follow_directory_symlink), end; it != end; ++it) {
+        std::error_code ec;
+        if (!it->is_regular_file(ec)) continue;
+        if (!looks_like_elf_candidate(it->path())) continue;
+        auto needed = readelf_needed(it->path());
+        libs.insert(needed.begin(), needed.end());
+    }
+
+    std::set<std::string> pkgs;
+    std::vector<std::string> unresolved;
+    for (const auto& lib : libs) {
+        auto it = byBase.find(lib);
+        if (it == byBase.end()) unresolved.push_back(lib);
+        else pkgs.insert(it->second.begin(), it->second.end());
+    }
+
+    std::sort(unresolved.begin(), unresolved.end());
+    if (unresolved_out) *unresolved_out = unresolved;
+    return set_to_vec(pkgs);
+}
+
+struct CommonFlags {
+    bool yes = false;
+    int next = 2;
+};
+
+static CommonFlags parse_common_flags(int argc, char** argv) {
+    CommonFlags f;
+    while (f.next < argc) {
+        std::string opt = argv[f.next];
+        if (opt == "-y") {
+            f.yes = true;
+            ++f.next;
+            continue;
+        }
+        break;
+    }
+    return f;
+}
+
+static PackageSpec parse_meta_file(const fs::path& metaFile) {
     std::ifstream in(metaFile);
-    if (!in)
-        throw std::runtime_error("cannot open meta file: " + metaFile.string());
+    if (!in) throw std::runtime_error("cannot open meta file: " + metaFile.string());
     PackageSpec spec;
     std::string line;
     while (std::getline(in, line)) {
         line = trim(line);
-        if (line.empty() || line[0] == '#')
-            continue;
+        if (line.empty() || line[0] == '#') continue;
         auto pos = line.find('=');
-        if (pos == std::string::npos)
-            continue;
+        if (pos == std::string::npos) continue;
         std::string k = trim(line.substr(0, pos));
         std::string v = trim(line.substr(pos + 1));
-        if (k == "name")
-            spec.name = v;
-        else if (k == "version")
-            spec.version = v;
-        else if (k == "stage_dir")
-            spec.stage_dir = v;
-        else if (k == "deps")
-            spec.deps = split(v, ',');
+        if (k == "name") spec.name = v;
+        else if (k == "version") spec.version = v;
+        else if (k == "stage_dir") spec.stage_dir = v;
+        else if (k == "deps") spec.deps = split(v, ',');
     }
-    if (spec.name.empty())
-        throw std::runtime_error("meta file missing name=");
-    if (spec.version.empty())
-        throw std::runtime_error("meta file missing version=");
-    if (spec.stage_dir.empty())
-        throw std::runtime_error("meta file missing stage_dir=");
+    if (spec.name.empty()) throw std::runtime_error("meta file missing name=");
+    if (spec.version.empty()) throw std::runtime_error("meta file missing version=");
+    if (spec.stage_dir.empty()) throw std::runtime_error("meta file missing stage_dir=");
     return spec;
 }
 
-static void apply_install_or_upgrade(PackageDB &db, const PackageSpec &spec,
-                                     bool forceUpgrade) {
+static std::vector<std::string> resolve_install_deps(const PackageDB& db,
+                                                     const PackageSpec& spec,
+                                                     bool yesFlag) {
+    if (!spec.deps.empty()) return spec.deps;
+
+    std::vector<std::string> unresolved;
+    auto autoDeps = detect_runtime_pkg_deps(db, spec.stage_dir, &unresolved);
+    if (yesFlag) return autoDeps;
+
+    std::cout << "==> 自动检测依赖: " << (autoDeps.empty() ? "(none)" : join(autoDeps, ',')) << "\n";
+    if (!unresolved.empty()) {
+        std::cout << "==> 未解析共享库: " << join(unresolved, ',') << "\n";
+    }
+
+    for (;;) {
+        std::string ans = prompt_line("[Enter=接受, e=编辑, n=空依赖, q=取消] > ");
+        if (ans.empty()) return autoDeps;
+        if (ans == "n") return {};
+        if (ans == "q") throw std::runtime_error("aborted");
+        if (ans == "e") {
+            std::string line = prompt_line("deps> ");
+            return split(line, ',');
+        }
+    }
+}
+
+static std::vector<std::string> resolve_upgrade_deps(const PackageDB& db,
+                                                     const PackageSpec& spec,
+                                                     const PackageMeta& oldMeta,
+                                                     bool yesFlag) {
+    if (!spec.deps.empty()) return spec.deps;
+
+    std::vector<std::string> unresolved;
+    auto autoDeps = detect_runtime_pkg_deps(db, spec.stage_dir, &unresolved);
+    auto merged = merge_unique(oldMeta.deps, autoDeps);
+    auto add = vec_diff(autoDeps, oldMeta.deps);
+    auto drop = vec_diff(oldMeta.deps, autoDeps);
+
+    if (yesFlag) return merged;
+
+    std::cout << "==> 旧依赖: " << (oldMeta.deps.empty() ? "(none)" : join(oldMeta.deps, ',')) << "\n";
+    std::cout << "==> 自动检测: " << (autoDeps.empty() ? "(none)" : join(autoDeps, ',')) << "\n";
+    if (!add.empty()) std::cout << "==> 新增候选: +" << join(add, ',') << "\n";
+    if (!drop.empty()) std::cout << "==> 旧依赖未再检测到: -" << join(drop, ',') << "\n";
+    if (!unresolved.empty()) std::cout << "==> 未解析共享库: " << join(unresolved, ',') << "\n";
+
+    for (;;) {
+        std::string ans = prompt_line("[Enter=保留旧依赖并追加新增, r=按检测替换, e=编辑, q=取消] > ");
+        if (ans.empty()) return merged;
+        if (ans == "r") return autoDeps;
+        if (ans == "q") throw std::runtime_error("aborted");
+        if (ans == "e") {
+            std::string line = prompt_line("deps> ");
+            return split(line, ',');
+        }
+    }
+}
+
+static void apply_install_or_upgrade(PackageDB& db, const PackageSpec& spec, bool forceUpgrade) {
     fs::path targetRoot = default_target_root();
     auto owners = db.load_owners();
     auto newManifest = collect_manifest_from_stage(spec.stage_dir);
 
-    for (const auto &dep : spec.deps) {
-        if (!db.installed(dep))
-            throw std::runtime_error("dependency not installed: " + dep);
+    for (const auto& dep : spec.deps) {
+        if (!db.installed(dep)) throw std::runtime_error("dependency not installed: " + dep);
     }
 
     bool alreadyInstalled = db.installed(spec.name);
     if (alreadyInstalled && !forceUpgrade) {
-        throw std::runtime_error("package already installed: " + spec.name +
-                                 " (use upgrade or install-meta)");
+        throw std::runtime_error("package already installed: " + spec.name + " (use upgrade or install-meta)");
     }
 
     std::vector<ManifestEntry> oldManifest;
-    if (alreadyInstalled)
-        oldManifest = db.read_manifest(spec.name);
+    if (alreadyInstalled) oldManifest = db.read_manifest(spec.name);
 
     RollbackState rb;
     cleanup_txn(db);
 
     try {
-        copy_manifest_to_root(db, spec.stage_dir, targetRoot, spec.name, owners,
-                              newManifest, alreadyInstalled, rb);
+        copy_manifest_to_root(db, spec.stage_dir, targetRoot, spec.name, owners, newManifest, alreadyInstalled, rb);
 
-        if (alreadyInstalled)
-            remove_obsolete_entries(oldManifest, newManifest, targetRoot,
-                                    spec.name, owners);
+        if (alreadyInstalled) remove_obsolete_entries(oldManifest, newManifest, targetRoot, spec.name, owners);
 
-        PackageMeta meta{spec.name, spec.version, now_iso8601_local(),
-                         spec.stage_dir.string(), spec.deps};
+        PackageMeta meta{spec.name, spec.version, now_iso8601_local(), spec.stage_dir.string(), spec.deps};
         db.write_meta_atomic(meta);
         db.write_manifest_atomic(spec.name, newManifest);
         db.save_owners_atomic(owners);
         cleanup_txn(db);
 
-        std::cout << (alreadyInstalled ? "upgraded " : "installed ")
-                  << spec.name << "-" << spec.version << "\n";
+        std::cout << (alreadyInstalled ? "upgraded " : "installed ") << spec.name << "-" << spec.version << "\n";
     } catch (...) {
         rollback_copy(targetRoot, rb);
         cleanup_txn(db);
@@ -710,56 +825,57 @@ static void apply_install_or_upgrade(PackageDB &db, const PackageSpec &spec,
     }
 }
 
-static void cmd_install(PackageDB &db, int argc, char **argv) {
-    if (argc < 5)
-        throw std::runtime_error("usage: lfspkg install <name> <version> "
-                                 "<stage_dir> [dep1,dep2,...]");
+static void cmd_install(PackageDB& db, int argc, char** argv) {
+    auto flags = parse_common_flags(argc, argv);
+    if (argc - flags.next < 3) throw std::runtime_error("usage: lfspkg install [-y] <name> <version> <stage_dir> [deps]");
     PackageSpec spec;
-    spec.name = argv[2];
-    spec.version = argv[3];
-    spec.stage_dir = argv[4];
-    spec.deps = (argc >= 6) ? split(argv[5], ',') : std::vector<std::string>{};
+    spec.name = argv[flags.next];
+    spec.version = argv[flags.next + 1];
+    spec.stage_dir = argv[flags.next + 2];
+    if (argc > flags.next + 3) spec.deps = split(argv[flags.next + 3], ',');
+    spec.deps = resolve_install_deps(db, spec, flags.yes);
     apply_install_or_upgrade(db, spec, false);
 }
 
-static void cmd_upgrade(PackageDB &db, int argc, char **argv) {
-    if (argc < 5)
-        throw std::runtime_error("usage: lfspkg upgrade <name> <version> "
-                                 "<stage_dir> [dep1,dep2,...]");
+static void cmd_upgrade(PackageDB& db, int argc, char** argv) {
+    auto flags = parse_common_flags(argc, argv);
+    if (argc - flags.next < 3) throw std::runtime_error("usage: lfspkg upgrade [-y] <name> <version> <stage_dir> [deps]");
     PackageSpec spec;
-    spec.name = argv[2];
-    spec.version = argv[3];
-    spec.stage_dir = argv[4];
-    spec.deps = (argc >= 6) ? split(argv[5], ',') : std::vector<std::string>{};
-    if (!db.installed(spec.name))
-        throw std::runtime_error("package not installed: " + spec.name);
+    spec.name = argv[flags.next];
+    spec.version = argv[flags.next + 1];
+    spec.stage_dir = argv[flags.next + 2];
+    if (argc > flags.next + 3) spec.deps = split(argv[flags.next + 3], ',');
+    if (!db.installed(spec.name)) throw std::runtime_error("package not installed: " + spec.name);
+    auto oldMeta = db.read_meta(spec.name);
+    spec.deps = resolve_upgrade_deps(db, spec, oldMeta, flags.yes);
     apply_install_or_upgrade(db, spec, true);
 }
 
-static void cmd_install_meta(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg install-meta <meta_file>");
-    PackageSpec spec = parse_meta_file(argv[2]);
+static void cmd_install_meta(PackageDB& db, int argc, char** argv) {
+    auto flags = parse_common_flags(argc, argv);
+    if (argc - flags.next < 1) throw std::runtime_error("usage: lfspkg install-meta [-y] <meta_file>");
+    PackageSpec spec = parse_meta_file(argv[flags.next]);
     bool alreadyInstalled = db.installed(spec.name);
+    if (alreadyInstalled) {
+        auto oldMeta = db.read_meta(spec.name);
+        spec.deps = resolve_upgrade_deps(db, spec, oldMeta, flags.yes);
+    } else {
+        spec.deps = resolve_install_deps(db, spec, flags.yes);
+    }
     apply_install_or_upgrade(db, spec, alreadyInstalled);
 }
 
-static void cmd_remove(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg remove <name> [--force]");
+static void cmd_remove(PackageDB& db, int argc, char** argv) {
+    if (argc < 3) throw std::runtime_error("usage: lfspkg remove <name> [--force]");
     const std::string name = argv[2];
     bool force = false;
-    for (int i = 3; i < argc; ++i)
-        if (std::string(argv[i]) == "--force")
-            force = true;
-    if (!db.installed(name))
-        throw std::runtime_error("package not installed: " + name);
+    for (int i = 3; i < argc; ++i) if (std::string(argv[i]) == "--force") force = true;
+    if (!db.installed(name)) throw std::runtime_error("package not installed: " + name);
 
     auto rdeps = reverse_dependencies(db, name);
     if (!force && !rdeps.empty()) {
         std::ostringstream os;
-        os << "refusing to remove " << name
-           << "; required by: " << join(rdeps, ',');
+        os << "refusing to remove " << name << "; required by: " << join(rdeps, ',');
         throw std::runtime_error(os.str());
     }
 
@@ -769,59 +885,49 @@ static void cmd_remove(PackageDB &db, int argc, char **argv) {
     std::cout << "removed " << name << "\n";
 }
 
-static void cmd_list(PackageDB &db) {
-    for (const auto &pkg : db.list_packages()) {
+static void cmd_list(PackageDB& db) {
+    for (const auto& pkg : db.list_packages()) {
         auto meta = db.read_meta(pkg);
         std::cout << meta.name << ' ' << meta.version << "\n";
     }
 }
 
-static void cmd_info(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg info <name>");
+static void cmd_info(PackageDB& db, int argc, char** argv) {
+    if (argc < 3) throw std::runtime_error("usage: lfspkg info <name>");
     auto m = db.read_meta(argv[2]);
     auto mf = db.read_manifest(argv[2]);
     auto rdeps = reverse_dependencies(db, argv[2]);
     std::cout << "name: " << m.name << "\n";
     std::cout << "version: " << m.version << "\n";
     std::cout << "installed_at: " << m.install_time << "\n";
-    std::cout << "stage_dir: "
-              << (m.stage_dir.empty() ? "(unknown)" : m.stage_dir) << "\n";
-    std::cout << "deps: " << (m.deps.empty() ? "(none)" : join(m.deps, ','))
-              << "\n";
-    std::cout << "required_by: "
-              << (rdeps.empty() ? "(none)" : join(rdeps, ',')) << "\n";
+    std::cout << "stage_dir: " << (m.stage_dir.empty() ? "(unknown)" : m.stage_dir) << "\n";
+    std::cout << "deps: " << (m.deps.empty() ? "(none)" : join(m.deps, ',')) << "\n";
+    std::cout << "required_by: " << (rdeps.empty() ? "(none)" : join(rdeps, ',')) << "\n";
     std::cout << "entries: " << mf.size() << "\n";
 }
 
-static void cmd_tree(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg tree <name>");
+static void cmd_tree(PackageDB& db, int argc, char** argv) {
+    if (argc < 3) throw std::runtime_error("usage: lfspkg tree <name>");
     std::set<std::string> seen;
     print_tree_rec(db, argv[2], seen, "", true);
 }
 
-static void cmd_owners(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg owners </path/to/file>");
+static void cmd_owners(PackageDB& db, int argc, char** argv) {
+    if (argc < 3) throw std::runtime_error("usage: lfspkg owners </path/to/file>");
     auto owners = db.load_owners();
     std::string path = argv[2];
-    if (path.empty() || path[0] != '/')
-        path = "/" + path;
+    if (path.empty() || path[0] != '/') path = "/" + path;
     auto it = owners.find(path);
-    if (it == owners.end())
-        std::cout << "unowned or unknown: " << path << "\n";
-    else
-        std::cout << path << " -> " << it->second << "\n";
+    if (it == owners.end()) std::cout << "unowned or unknown: " << path << "\n";
+    else std::cout << path << " -> " << it->second << "\n";
 }
 
-static void cmd_verify(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg verify <name>");
+static void cmd_verify(PackageDB& db, int argc, char** argv) {
+    if (argc < 3) throw std::runtime_error("usage: lfspkg verify <name>");
     auto mf = db.read_manifest(argv[2]);
     fs::path root = default_target_root();
     bool ok = true;
-    for (const auto &e : mf) {
+    for (const auto& e : mf) {
         fs::path real = root / fs::path(e.installPath).relative_path();
         bool exists = fs::exists(real) || fs::is_symlink(real);
         if (!exists) {
@@ -829,51 +935,15 @@ static void cmd_verify(PackageDB &db, int argc, char **argv) {
             std::cout << "missing: " << e.installPath << "\n";
         }
     }
-    if (ok)
-        std::cout << "ok\n";
+    if (ok) std::cout << "ok\n";
 }
 
-static void cmd_suggest_deps(PackageDB &db, int argc, char **argv) {
-    if (argc < 3)
-        throw std::runtime_error("usage: lfspkg suggest-deps <stage_dir>");
-    fs::path stage = argv[2];
-    auto owners = db.load_owners();
-    auto byBase = build_basename_to_pkg(owners);
-    std::set<std::string> libs;
-
-    for (fs::recursive_directory_iterator
-             it(stage, fs::directory_options::follow_directory_symlink),
-         end;
-         it != end; ++it) {
-        std::error_code ec;
-        if (!it->is_regular_file(ec))
-            continue;
-        if (!looks_like_elf_candidate(it->path()))
-            continue;
-        auto needed = readelf_needed(it->path());
-        libs.insert(needed.begin(), needed.end());
-    }
-
-    std::set<std::string> pkgs;
+static void cmd_suggest_deps(PackageDB& db, int argc, char** argv) {
+    if (argc < 3) throw std::runtime_error("usage: lfspkg suggest-deps <stage_dir>");
     std::vector<std::string> unresolved;
-    for (const auto &lib : libs) {
-        auto it = byBase.find(lib);
-        if (it == byBase.end())
-            unresolved.push_back(lib);
-        else
-            pkgs.insert(it->second.begin(), it->second.end());
-    }
-
-    std::cout << "suggested_packages="
-              << (pkgs.empty()
-                      ? ""
-                      : join(std::vector<std::string>(pkgs.begin(), pkgs.end()),
-                             ','))
-              << "\n";
-    if (!unresolved.empty()) {
-        std::sort(unresolved.begin(), unresolved.end());
-        std::cout << "unresolved_libs=" << join(unresolved, ',') << "\n";
-    }
+    auto pkgs = detect_runtime_pkg_deps(db, argv[2], &unresolved);
+    std::cout << "suggested_packages=" << (pkgs.empty() ? "" : join(pkgs, ',')) << "\n";
+    if (!unresolved.empty()) std::cout << "unresolved_libs=" << join(unresolved, ',') << "\n";
 }
 
 static void usage() {
@@ -882,9 +952,9 @@ static void usage() {
               << "  LFSPKG_DB   包数据库目录 (default: /var/lib/lfspkg)\n"
               << "  LFSPKG_ROOT 安装目标根目录 (default: /)\n\n"
               << "Commands:\n"
-              << "  install <name> <version> <stage_dir> [dep1,dep2,...]\n"
-              << "  upgrade <name> <version> <stage_dir> [dep1,dep2,...]\n"
-              << "  install-meta <meta_file>\n"
+              << "  install [-y] <name> <version> <stage_dir> [deps]\n"
+              << "  upgrade [-y] <name> <version> <stage_dir> [deps]\n"
+              << "  install-meta [-y] <meta_file>\n"
               << "  remove <name> [--force]\n"
               << "  list\n"
               << "  info <name>\n"
@@ -894,7 +964,7 @@ static void usage() {
               << "  suggest-deps <stage_dir>\n";
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     try {
         if (argc < 2) {
             usage();
@@ -905,32 +975,22 @@ int main(int argc, char **argv) {
         db.ensure();
 
         std::string cmd = argv[1];
-        if (cmd == "install")
-            cmd_install(db, argc, argv);
-        else if (cmd == "upgrade")
-            cmd_upgrade(db, argc, argv);
-        else if (cmd == "install-meta")
-            cmd_install_meta(db, argc, argv);
-        else if (cmd == "remove")
-            cmd_remove(db, argc, argv);
-        else if (cmd == "list")
-            cmd_list(db);
-        else if (cmd == "info")
-            cmd_info(db, argc, argv);
-        else if (cmd == "tree")
-            cmd_tree(db, argc, argv);
-        else if (cmd == "owners")
-            cmd_owners(db, argc, argv);
-        else if (cmd == "verify")
-            cmd_verify(db, argc, argv);
-        else if (cmd == "suggest-deps")
-            cmd_suggest_deps(db, argc, argv);
+        if (cmd == "install") cmd_install(db, argc, argv);
+        else if (cmd == "upgrade") cmd_upgrade(db, argc, argv);
+        else if (cmd == "install-meta") cmd_install_meta(db, argc, argv);
+        else if (cmd == "remove") cmd_remove(db, argc, argv);
+        else if (cmd == "list") cmd_list(db);
+        else if (cmd == "info") cmd_info(db, argc, argv);
+        else if (cmd == "tree") cmd_tree(db, argc, argv);
+        else if (cmd == "owners") cmd_owners(db, argc, argv);
+        else if (cmd == "verify") cmd_verify(db, argc, argv);
+        else if (cmd == "suggest-deps") cmd_suggest_deps(db, argc, argv);
         else {
             usage();
             return 1;
         }
         return 0;
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << "\n";
         return 2;
     }
