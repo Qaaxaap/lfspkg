@@ -1,0 +1,9 @@
+Version 0.1.0 (2026-05-29)
+* Autotools build system replacing hand-written Makefile.
+* Modular source layout: library (db, package, util, elf) separate from CLI.
+* Public C++ library API (namespace lfspkg) for use by qp and other tools.
+* gettext internationalization with Chinese (zh_CN) translation.
+* --help and --version flags.
+End of Alpha
+* Initial release: single-file package tracker with install, upgrade,
+  remove, list, info, tree, owners, verify, suggest-deps commands.

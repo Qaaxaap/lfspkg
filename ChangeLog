@@ -1,0 +1,37 @@
+2026-05-29  Qaaxaap  <1515784026@qq.com>
+
+	* configure.ac: New file.  Autoconf configuration with C++,
+	config.h, and gettext checks.
+	* Makefile.am: New file.  SUBDIRS = po src tests.
+	* src/Makefile.am: New file.  Build lfspkg binary from library
+	and CLI sources.
+	* tests/Makefile.am: New file.  Trivial make check harness.
+	* po/Makefile.am: New file.  Build and install .gmo catalogs.
+	* include/lfspkg/db.hpp: New file.  PackageDB, PackageMeta,
+	ManifestEntry, PackageSpec, RollbackState.
+	* include/lfspkg/package.hpp: New file.  Install, upgrade,
+	remove, verify, and manifest operations.
+	* include/lfspkg/util.hpp: New file.  String and filesystem
+	utilities, gettext macros, i18n_init().
+	* include/lfspkg/elf.hpp: New file.  ELF candidate detection,
+	readelf wrapper, suggest-deps.
+	* src/db.cpp: New file.  PackageDB method implementations.
+	* src/package.cpp: New file.  Package operation implementations
+	with atomic writes and rollback support.
+	* src/util.cpp: New file.  Utility implementations and i18n
+	initialization.
+	* src/elf.cpp: New file.  ELF parsing implementations.
+	* src/cli.hpp: New file.  CLI function declarations.
+	* src/cli.cpp: New file.  Command implementations and usage().
+	* src/main.cpp: New file.  Entry point with --help/--version,
+	i18n init, and command dispatch.
+	* tests/test_main.cpp: New file.  Trivial test stub.
+	* po/POTFILES.in, po/Makevars, po/LINGUAS: New files.
+	* po/zh_CN.po: New file.  Chinese (Simplified) translation.
+	* .gitignore, AUTHORS, NEWS, ChangeLog, THANKS: New files.
+	* lfspkg.cpp: Removed.  Split into the files listed above.
+	* Makefile: Removed.  Replaced by autotools.
+
+2026-05-25  Qaaxaap  <1515784026@qq.com>
+
+	* Initial release.  Single-file package tracker for LFS.
