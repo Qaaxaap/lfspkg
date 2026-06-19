@@ -1,6 +1,7 @@
 noinst_LIBRARIES = liblfspkg.a
 
 liblfspkg_a_SOURCES = \
+    config.cpp \
     db.cpp \
     package.cpp \
     util.cpp \

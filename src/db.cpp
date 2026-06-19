@@ -1,3 +1,4 @@
+#include "lfspkg/config.hpp"
 #include "lfspkg/db.hpp"
 #include "lfspkg/util.hpp"
 
@@ -201,17 +202,13 @@ PackageDB::save_owners_atomic (
 fs::path
 default_db_root ()
 {
-  if (const char *env = std::getenv ("LFSPKG_DB"))
-    return fs::path (env);
-  return "/var/lib/lfspkg";
+  return load_lfspkg_config ().db_root;
 }
 
 fs::path
 default_target_root ()
 {
-  if (const char *env = std::getenv ("LFSPKG_ROOT"))
-    return fs::path (env);
-  return "/";
+  return load_lfspkg_config ().target_root;
 }
 
 } // namespace lfspkg

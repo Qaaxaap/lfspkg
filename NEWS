@@ -1,3 +1,9 @@
+Version 0.1.3 (2026-06-19)
+* Configuration system: layered config from /etc/lfspkg.conf and
+  ~/.config/lfspkg/lfspkg.conf with KEY=VALUE format.  Supports
+  DB_ROOT and TARGET_ROOT.  LFSPKG_DB / LFSPKG_ROOT environment
+  variables take highest priority.
+
 Version 0.1.2 (2026-06-19)
 * All C++ sources reformatted with clang-format GNU style.
 * Added .clang-format configuration file (BasedOnStyle: GNU,

@@ -1,4 +1,4 @@
-AC_INIT([lfspkg], [0.1.2], [github.com/Qaaxaap/lfspkg/issues])
+AC_INIT([lfspkg], [0.1.3], [github.com/Qaaxaap/lfspkg/issues])
 
 AC_CONFIG_SRCDIR([src/main.cpp])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
