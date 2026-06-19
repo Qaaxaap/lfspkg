@@ -1,5 +1,14 @@
 2026-06-19  Qaaxaap  <1515784026@qq.com>
 
+	* configure.ac: Bump version to 0.1.2.
+	* .clang-format: New file.
+	* .gitignore: Add *.a.
+	* All C++ sources reformatted with clang-format GNU style.
+	* NEWS: Update for 0.1.2.
+	* ChangeLog: This file.
+
+2026-06-19  Qaaxaap  <1515784026@qq.com>
+
 	* configure.ac: Add AC_PROG_RANLIB for static library support.
 	* src/Makefile.am: Add noinst_LIBRARIES = liblfspkg.a target.
 	Split library sources (db, package, util, elf) from CLI binary

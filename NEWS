@@ -1,3 +1,9 @@
+Version 0.1.2 (2026-06-19)
+* All C++ sources reformatted with clang-format GNU style.
+* Added .clang-format configuration file (BasedOnStyle: GNU,
+  PointerAlignment: Right).
+* Added *.a to .gitignore to exclude build artifacts.
+
 Version 0.1.1 (2026-06-19)
 * Build as static library (liblfspkg.a) for linking by qp and other tools.
 * built_deps: PackageMeta now records each dependency's version at build
