@@ -4,6 +4,7 @@ AC_CONFIG_SRCDIR([src/main.cpp])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 AC_PROG_CXX
+AC_PROG_RANLIB
 
 AC_CONFIG_HEADERS([config.h])
 

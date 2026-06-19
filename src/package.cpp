@@ -261,8 +261,15 @@ apply_install_or_upgrade (PackageDB &db, const PackageSpec &spec,
         remove_obsolete_entries (oldManifest, newManifest, targetRoot,
                                  spec.name, owners);
 
+      std::map<std::string, std::string> built_deps;
+      for (const auto &dep : spec.deps)
+        {
+          if (db.installed (dep))
+            built_deps[dep] = db.read_meta (dep).version;
+        }
+
       PackageMeta meta{ spec.name, spec.version, now_iso8601_local (),
-                        spec.stage_dir.string (), spec.deps };
+                        spec.stage_dir.string (), spec.deps, built_deps };
       db.write_meta_atomic (meta);
       db.write_manifest_atomic (spec.name, newManifest);
       db.save_owners_atomic (owners);
@@ -421,6 +428,29 @@ verify_package (const PackageDB &db, const std::string &name,
           std::cout << "missing: " << e.installPath << "\n";
         }
     }
+}
+
+std::vector<std::string>
+find_stale_packages (const PackageDB &db)
+{
+  std::vector<std::string> stale;
+  for (const auto &pkg : db.list_packages ())
+    {
+      PackageMeta m = db.read_meta (pkg);
+      if (m.built_deps.empty ())
+        continue;
+      for (const auto &[dep, built_ver] : m.built_deps)
+        {
+          if (!db.installed (dep))
+            continue;
+          if (db.read_meta (dep).version != built_ver)
+            {
+              stale.push_back (pkg);
+              break;
+            }
+        }
+    }
+  return stale;
 }
 
 }

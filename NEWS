@@ -1,3 +1,10 @@
+Version 0.1.1 (2026-06-19)
+* Build as static library (liblfspkg.a) for linking by qp and other tools.
+* built_deps: PackageMeta now records each dependency's version at build
+  time, enabling detection of stale packages after dependency upgrades.
+* find_stale_packages(): New public function to find packages whose
+  dependencies have changed version since they were built.
+
 Version 0.1.0 (2026-05-29)
 * Autotools build system replacing hand-written Makefile.
 * Modular source layout: library (db, package, util, elf) separate from CLI.

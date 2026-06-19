@@ -1,3 +1,24 @@
+2026-06-19  Qaaxaap  <1515784026@qq.com>
+
+	* configure.ac: Add AC_PROG_RANLIB for static library support.
+	* src/Makefile.am: Add noinst_LIBRARIES = liblfspkg.a target.
+	Split library sources (db, package, util, elf) from CLI binary
+	sources (main, cli).  lfspkg binary links against liblfspkg.a.
+	* include/lfspkg/db.hpp (PackageMeta): Add built_deps field
+	(std::map<std::string, std::string>) to record each dependency's
+	version at build time.
+	* src/db.cpp (write_meta_atomic): Serialize built_deps as
+	"built_deps=dep1:ver1,dep2:ver2,...".
+	(read_meta): Deserialize built_deps from meta file.
+	* include/lfspkg/package.hpp: Declare find_stale_packages().
+	* src/package.cpp (apply_install_or_upgrade): Resolve each dep's
+	current version from the database and store in built_deps before
+	writing PackageMeta.
+	(find_stale_packages): New function.  For each installed package,
+	compare built_deps versions against currently-installed dependency
+	versions.  Returns names of packages with version mismatches.
+	* ChangeLog: This file.
+
 2026-05-29  Qaaxaap  <1515784026@qq.com>
 
 	* configure.ac: New file.  Autoconf configuration with C++,

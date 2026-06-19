@@ -27,6 +27,8 @@ void remove_package_files (PackageDB &db, const std::string &pkg,
 std::vector<std::string> reverse_dependencies (const PackageDB &db,
                                                const std::string &pkg);
 
+std::vector<std::string> find_stale_packages (const PackageDB &db);
+
 void print_tree_rec (const PackageDB &db, const std::string &pkg,
                      std::set<std::string> &seen, const std::string &prefix,
                      bool last);

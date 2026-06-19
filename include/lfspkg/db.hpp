@@ -16,6 +16,7 @@ struct PackageMeta
   std::string install_time;
   std::string stage_dir;
   std::vector<std::string> deps;
+  std::map<std::string, std::string> built_deps;
 };
 
 struct ManifestEntry

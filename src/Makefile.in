@@ -14,6 +14,7 @@
 
 @SET_MAKE@
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -101,11 +102,23 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_lfspkg_OBJECTS = lfspkg-main.$(OBJEXT) lfspkg-cli.$(OBJEXT) \
-	lfspkg-db.$(OBJEXT) lfspkg-package.$(OBJEXT) \
-	lfspkg-util.$(OBJEXT) lfspkg-elf.$(OBJEXT)
+LIBRARIES = $(noinst_LIBRARIES)
+AR = ar
+ARFLAGS = cr
+AM_V_AR = $(am__v_AR_@AM_V@)
+am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
+am__v_AR_0 = @echo "  AR      " $@;
+am__v_AR_1 = 
+liblfspkg_a_AR = $(AR) $(ARFLAGS)
+liblfspkg_a_RANLIB = $(RANLIB)
+liblfspkg_a_LIBADD =
+am_liblfspkg_a_OBJECTS = liblfspkg_a-db.$(OBJEXT) \
+	liblfspkg_a-package.$(OBJEXT) liblfspkg_a-util.$(OBJEXT) \
+	liblfspkg_a-elf.$(OBJEXT)
+liblfspkg_a_OBJECTS = $(am_liblfspkg_a_OBJECTS)
+am_lfspkg_OBJECTS = lfspkg-main.$(OBJEXT) lfspkg-cli.$(OBJEXT)
 lfspkg_OBJECTS = $(am_lfspkg_OBJECTS)
-lfspkg_LDADD = $(LDADD)
+lfspkg_DEPENDENCIES = liblfspkg.a
 lfspkg_LINK = $(CXXLD) $(lfspkg_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
@@ -124,9 +137,10 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/lfspkg-cli.Po \
-	./$(DEPDIR)/lfspkg-db.Po ./$(DEPDIR)/lfspkg-elf.Po \
-	./$(DEPDIR)/lfspkg-main.Po ./$(DEPDIR)/lfspkg-package.Po \
-	./$(DEPDIR)/lfspkg-util.Po
+	./$(DEPDIR)/lfspkg-main.Po ./$(DEPDIR)/liblfspkg_a-db.Po \
+	./$(DEPDIR)/liblfspkg_a-elf.Po \
+	./$(DEPDIR)/liblfspkg_a-package.Po \
+	./$(DEPDIR)/liblfspkg_a-util.Po
 am__mv = mv -f
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -157,8 +171,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(lfspkg_SOURCES)
-DIST_SOURCES = $(lfspkg_SOURCES)
+SOURCES = $(liblfspkg_a_SOURCES) $(lfspkg_SOURCES)
+DIST_SOURCES = $(liblfspkg_a_SOURCES) $(lfspkg_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -227,6 +241,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+RANLIB = @RANLIB@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
@@ -277,17 +292,23 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-lfspkg_SOURCES = \
-    main.cpp \
-    cli.cpp \
+noinst_LIBRARIES = liblfspkg.a
+liblfspkg_a_SOURCES = \
     db.cpp \
     package.cpp \
     util.cpp \
-    elf.cpp \
+    elf.cpp
+
+liblfspkg_a_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir) -DLOCALEDIR='"$(localedir)"'
+liblfspkg_a_CXXFLAGS = -std=c++17 -Wall -Wextra
+lfspkg_SOURCES = \
+    main.cpp \
+    cli.cpp \
     cli.hpp
 
 lfspkg_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir) -DLOCALEDIR='"$(localedir)"'
 lfspkg_CXXFLAGS = -std=c++17 -Wall -Wextra
+lfspkg_LDADD = liblfspkg.a
 all: all-am
 
 .SUFFIXES:
@@ -364,6 +385,14 @@ uninstall-binPROGRAMS:
 clean-binPROGRAMS:
 	-$(am__rm_f) $(bin_PROGRAMS)
 
+clean-noinstLIBRARIES:
+	-$(am__rm_f) $(noinst_LIBRARIES)
+
+liblfspkg.a: $(liblfspkg_a_OBJECTS) $(liblfspkg_a_DEPENDENCIES) $(EXTRA_liblfspkg_a_DEPENDENCIES) 
+	$(AM_V_at)-rm -f liblfspkg.a
+	$(AM_V_AR)$(liblfspkg_a_AR) liblfspkg.a $(liblfspkg_a_OBJECTS) $(liblfspkg_a_LIBADD)
+	$(AM_V_at)$(liblfspkg_a_RANLIB) liblfspkg.a
+
 lfspkg$(EXEEXT): $(lfspkg_OBJECTS) $(lfspkg_DEPENDENCIES) $(EXTRA_lfspkg_DEPENDENCIES) 
 	@rm -f lfspkg$(EXEEXT)
 	$(AM_V_CXXLD)$(lfspkg_LINK) $(lfspkg_OBJECTS) $(lfspkg_LDADD) $(LIBS)
@@ -375,11 +404,11 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lfspkg-cli.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lfspkg-db.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lfspkg-elf.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lfspkg-main.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lfspkg-package.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lfspkg-util.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblfspkg_a-db.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblfspkg_a-elf.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblfspkg_a-package.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblfspkg_a-util.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -402,6 +431,62 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+liblfspkg_a-db.o: db.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-db.o -MD -MP -MF $(DEPDIR)/liblfspkg_a-db.Tpo -c -o liblfspkg_a-db.o `test -f 'db.cpp' || echo '$(srcdir)/'`db.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-db.Tpo $(DEPDIR)/liblfspkg_a-db.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='db.cpp' object='liblfspkg_a-db.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-db.o `test -f 'db.cpp' || echo '$(srcdir)/'`db.cpp
+
+liblfspkg_a-db.obj: db.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-db.obj -MD -MP -MF $(DEPDIR)/liblfspkg_a-db.Tpo -c -o liblfspkg_a-db.obj `if test -f 'db.cpp'; then $(CYGPATH_W) 'db.cpp'; else $(CYGPATH_W) '$(srcdir)/db.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-db.Tpo $(DEPDIR)/liblfspkg_a-db.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='db.cpp' object='liblfspkg_a-db.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-db.obj `if test -f 'db.cpp'; then $(CYGPATH_W) 'db.cpp'; else $(CYGPATH_W) '$(srcdir)/db.cpp'; fi`
+
+liblfspkg_a-package.o: package.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-package.o -MD -MP -MF $(DEPDIR)/liblfspkg_a-package.Tpo -c -o liblfspkg_a-package.o `test -f 'package.cpp' || echo '$(srcdir)/'`package.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-package.Tpo $(DEPDIR)/liblfspkg_a-package.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='package.cpp' object='liblfspkg_a-package.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-package.o `test -f 'package.cpp' || echo '$(srcdir)/'`package.cpp
+
+liblfspkg_a-package.obj: package.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-package.obj -MD -MP -MF $(DEPDIR)/liblfspkg_a-package.Tpo -c -o liblfspkg_a-package.obj `if test -f 'package.cpp'; then $(CYGPATH_W) 'package.cpp'; else $(CYGPATH_W) '$(srcdir)/package.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-package.Tpo $(DEPDIR)/liblfspkg_a-package.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='package.cpp' object='liblfspkg_a-package.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-package.obj `if test -f 'package.cpp'; then $(CYGPATH_W) 'package.cpp'; else $(CYGPATH_W) '$(srcdir)/package.cpp'; fi`
+
+liblfspkg_a-util.o: util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-util.o -MD -MP -MF $(DEPDIR)/liblfspkg_a-util.Tpo -c -o liblfspkg_a-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-util.Tpo $(DEPDIR)/liblfspkg_a-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='util.cpp' object='liblfspkg_a-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
+
+liblfspkg_a-util.obj: util.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-util.obj -MD -MP -MF $(DEPDIR)/liblfspkg_a-util.Tpo -c -o liblfspkg_a-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-util.Tpo $(DEPDIR)/liblfspkg_a-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='util.cpp' object='liblfspkg_a-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
+
+liblfspkg_a-elf.o: elf.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-elf.o -MD -MP -MF $(DEPDIR)/liblfspkg_a-elf.Tpo -c -o liblfspkg_a-elf.o `test -f 'elf.cpp' || echo '$(srcdir)/'`elf.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-elf.Tpo $(DEPDIR)/liblfspkg_a-elf.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='elf.cpp' object='liblfspkg_a-elf.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-elf.o `test -f 'elf.cpp' || echo '$(srcdir)/'`elf.cpp
+
+liblfspkg_a-elf.obj: elf.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -MT liblfspkg_a-elf.obj -MD -MP -MF $(DEPDIR)/liblfspkg_a-elf.Tpo -c -o liblfspkg_a-elf.obj `if test -f 'elf.cpp'; then $(CYGPATH_W) 'elf.cpp'; else $(CYGPATH_W) '$(srcdir)/elf.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblfspkg_a-elf.Tpo $(DEPDIR)/liblfspkg_a-elf.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='elf.cpp' object='liblfspkg_a-elf.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(liblfspkg_a_CPPFLAGS) $(CPPFLAGS) $(liblfspkg_a_CXXFLAGS) $(CXXFLAGS) -c -o liblfspkg_a-elf.obj `if test -f 'elf.cpp'; then $(CYGPATH_W) 'elf.cpp'; else $(CYGPATH_W) '$(srcdir)/elf.cpp'; fi`
 
 lfspkg-main.o: main.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-main.o -MD -MP -MF $(DEPDIR)/lfspkg-main.Tpo -c -o lfspkg-main.o `test -f 'main.cpp' || echo '$(srcdir)/'`main.cpp
@@ -430,62 +515,6 @@ lfspkg-cli.obj: cli.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='cli.cpp' object='lfspkg-cli.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-cli.obj `if test -f 'cli.cpp'; then $(CYGPATH_W) 'cli.cpp'; else $(CYGPATH_W) '$(srcdir)/cli.cpp'; fi`
-
-lfspkg-db.o: db.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-db.o -MD -MP -MF $(DEPDIR)/lfspkg-db.Tpo -c -o lfspkg-db.o `test -f 'db.cpp' || echo '$(srcdir)/'`db.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-db.Tpo $(DEPDIR)/lfspkg-db.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='db.cpp' object='lfspkg-db.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-db.o `test -f 'db.cpp' || echo '$(srcdir)/'`db.cpp
-
-lfspkg-db.obj: db.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-db.obj -MD -MP -MF $(DEPDIR)/lfspkg-db.Tpo -c -o lfspkg-db.obj `if test -f 'db.cpp'; then $(CYGPATH_W) 'db.cpp'; else $(CYGPATH_W) '$(srcdir)/db.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-db.Tpo $(DEPDIR)/lfspkg-db.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='db.cpp' object='lfspkg-db.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-db.obj `if test -f 'db.cpp'; then $(CYGPATH_W) 'db.cpp'; else $(CYGPATH_W) '$(srcdir)/db.cpp'; fi`
-
-lfspkg-package.o: package.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-package.o -MD -MP -MF $(DEPDIR)/lfspkg-package.Tpo -c -o lfspkg-package.o `test -f 'package.cpp' || echo '$(srcdir)/'`package.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-package.Tpo $(DEPDIR)/lfspkg-package.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='package.cpp' object='lfspkg-package.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-package.o `test -f 'package.cpp' || echo '$(srcdir)/'`package.cpp
-
-lfspkg-package.obj: package.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-package.obj -MD -MP -MF $(DEPDIR)/lfspkg-package.Tpo -c -o lfspkg-package.obj `if test -f 'package.cpp'; then $(CYGPATH_W) 'package.cpp'; else $(CYGPATH_W) '$(srcdir)/package.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-package.Tpo $(DEPDIR)/lfspkg-package.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='package.cpp' object='lfspkg-package.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-package.obj `if test -f 'package.cpp'; then $(CYGPATH_W) 'package.cpp'; else $(CYGPATH_W) '$(srcdir)/package.cpp'; fi`
-
-lfspkg-util.o: util.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-util.o -MD -MP -MF $(DEPDIR)/lfspkg-util.Tpo -c -o lfspkg-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-util.Tpo $(DEPDIR)/lfspkg-util.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='util.cpp' object='lfspkg-util.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
-
-lfspkg-util.obj: util.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-util.obj -MD -MP -MF $(DEPDIR)/lfspkg-util.Tpo -c -o lfspkg-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-util.Tpo $(DEPDIR)/lfspkg-util.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='util.cpp' object='lfspkg-util.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
-
-lfspkg-elf.o: elf.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-elf.o -MD -MP -MF $(DEPDIR)/lfspkg-elf.Tpo -c -o lfspkg-elf.o `test -f 'elf.cpp' || echo '$(srcdir)/'`elf.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-elf.Tpo $(DEPDIR)/lfspkg-elf.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='elf.cpp' object='lfspkg-elf.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-elf.o `test -f 'elf.cpp' || echo '$(srcdir)/'`elf.cpp
-
-lfspkg-elf.obj: elf.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -MT lfspkg-elf.obj -MD -MP -MF $(DEPDIR)/lfspkg-elf.Tpo -c -o lfspkg-elf.obj `if test -f 'elf.cpp'; then $(CYGPATH_W) 'elf.cpp'; else $(CYGPATH_W) '$(srcdir)/elf.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lfspkg-elf.Tpo $(DEPDIR)/lfspkg-elf.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='elf.cpp' object='lfspkg-elf.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lfspkg_CPPFLAGS) $(CPPFLAGS) $(lfspkg_CXXFLAGS) $(CXXFLAGS) -c -o lfspkg-elf.obj `if test -f 'elf.cpp'; then $(CYGPATH_W) 'elf.cpp'; else $(CYGPATH_W) '$(srcdir)/elf.cpp'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -574,7 +603,7 @@ distdir-am: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(PROGRAMS)
+all-am: Makefile $(PROGRAMS) $(LIBRARIES)
 installdirs:
 	for dir in "$(DESTDIR)$(bindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
@@ -611,15 +640,16 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-noinstLIBRARIES \
+	mostlyclean-am
 
 distclean: distclean-am
 	-rm -f ./$(DEPDIR)/lfspkg-cli.Po
-	-rm -f ./$(DEPDIR)/lfspkg-db.Po
-	-rm -f ./$(DEPDIR)/lfspkg-elf.Po
 	-rm -f ./$(DEPDIR)/lfspkg-main.Po
-	-rm -f ./$(DEPDIR)/lfspkg-package.Po
-	-rm -f ./$(DEPDIR)/lfspkg-util.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-db.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-elf.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-package.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-util.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -666,11 +696,11 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/lfspkg-cli.Po
-	-rm -f ./$(DEPDIR)/lfspkg-db.Po
-	-rm -f ./$(DEPDIR)/lfspkg-elf.Po
 	-rm -f ./$(DEPDIR)/lfspkg-main.Po
-	-rm -f ./$(DEPDIR)/lfspkg-package.Po
-	-rm -f ./$(DEPDIR)/lfspkg-util.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-db.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-elf.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-package.Po
+	-rm -f ./$(DEPDIR)/liblfspkg_a-util.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -691,18 +721,18 @@ uninstall-am: uninstall-binPROGRAMS
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-am clean \
-	clean-binPROGRAMS clean-generic cscopelist-am ctags ctags-am \
-	distclean distclean-compile distclean-generic distclean-tags \
-	distdir dvi dvi-am html html-am info info-am install \
-	install-am install-binPROGRAMS install-data install-data-am \
-	install-dvi install-dvi-am install-exec install-exec-am \
-	install-html install-html-am install-info install-info-am \
-	install-man install-pdf install-pdf-am install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic pdf pdf-am \
-	ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-binPROGRAMS
+	clean-binPROGRAMS clean-generic clean-noinstLIBRARIES \
+	cscopelist-am ctags ctags-am distclean distclean-compile \
+	distclean-generic distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-binPROGRAMS \
+	install-data install-data-am install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-binPROGRAMS
 
 .PRECIOUS: Makefile
 

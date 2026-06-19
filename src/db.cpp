@@ -64,6 +64,14 @@ PackageDB::write_meta_atomic (const PackageMeta &meta) const
   out << "install_time=" << meta.install_time << "\n";
   out << "stage_dir=" << meta.stage_dir << "\n";
   out << "deps=" << join (meta.deps, ',') << "\n";
+  std::string bd;
+  for (const auto &[dep, ver] : meta.built_deps)
+    {
+      if (!bd.empty ())
+        bd += ',';
+      bd += dep + ':' + ver;
+    }
+  out << "built_deps=" << bd << "\n";
   out.close ();
   fs::rename (tmp, meta_path (meta.name));
 }
@@ -93,6 +101,16 @@ PackageDB::read_meta (const std::string &name) const
         m.stage_dir = v;
       else if (k == "deps")
         m.deps = split (v, ',');
+      else if (k == "built_deps" && !v.empty ())
+        {
+          for (const auto &pair : split (v, ','))
+            {
+              auto colon = pair.find (':');
+              if (colon != std::string::npos)
+                m.built_deps[pair.substr (0, colon)]
+                    = pair.substr (colon + 1);
+            }
+        }
     }
   return m;
 }
