@@ -9,7 +9,8 @@
 #include <iostream>
 #include <stdexcept>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 void
 usage ()
@@ -21,8 +22,10 @@ usage ()
   std::printf ("  LFSPKG_ROOT  %s\n\n",
                _ ("installation target root (default: /)"));
   std::printf ("%s\n", _ ("Commands:"));
-  std::printf ("  install      <name> <version> <stage_dir> [dep1,dep2,...]\n");
-  std::printf ("  upgrade      <name> <version> <stage_dir> [dep1,dep2,...]\n");
+  std::printf (
+      "  install      <name> <version> <stage_dir> [dep1,dep2,...]\n");
+  std::printf (
+      "  upgrade      <name> <version> <stage_dir> [dep1,dep2,...]\n");
   std::printf ("  install-meta <meta_file>\n");
   std::printf ("  remove       <name> [--force]\n");
   std::printf ("  list\n");

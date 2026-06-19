@@ -6,7 +6,8 @@
 #include <set>
 #include <vector>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 std::vector<ManifestEntry>
 collect_manifest_from_stage (const std::filesystem::path &stage);
@@ -38,4 +39,4 @@ PackageSpec parse_meta_file (const std::filesystem::path &metaFile);
 void verify_package (const PackageDB &db, const std::string &name,
                      const std::filesystem::path &targetRoot, bool &ok);
 
-}
+} // namespace lfspkg

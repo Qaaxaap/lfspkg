@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 namespace fs = std::filesystem;
 
@@ -42,8 +43,7 @@ std::set<std::string>
 readelf_needed (const fs::path &file)
 {
   std::set<std::string> needed;
-  std::string cmd = "readelf -d "
-                    + shell_escape_single_quotes (file.string ())
+  std::string cmd = "readelf -d " + shell_escape_single_quotes (file.string ())
                     + " 2>/dev/null";
   FILE *pipe = popen (cmd.c_str (), "r");
   if (!pipe)

@@ -6,7 +6,8 @@
 #include <fstream>
 #include <stdexcept>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 namespace fs = std::filesystem;
 
@@ -107,8 +108,7 @@ PackageDB::read_meta (const std::string &name) const
             {
               auto colon = pair.find (':');
               if (colon != std::string::npos)
-                m.built_deps[pair.substr (0, colon)]
-                    = pair.substr (colon + 1);
+                m.built_deps[pair.substr (0, colon)] = pair.substr (colon + 1);
             }
         }
     }
@@ -214,4 +214,4 @@ default_target_root ()
   return "/";
 }
 
-}
+} // namespace lfspkg

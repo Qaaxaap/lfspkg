@@ -6,10 +6,11 @@
 
 #include <filesystem>
 
-#define _(String)  gettext (String)
+#define _(String) gettext (String)
 #define N_(String) (String)
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 void i18n_init ();
 

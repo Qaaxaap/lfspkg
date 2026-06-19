@@ -11,12 +11,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
-static const char*
+static const char *
 find_locale_dir ()
 {
-  const char* dir = std::getenv ("TEXTDOMAINDIR");
+  const char *dir = std::getenv ("TEXTDOMAINDIR");
   if (dir != nullptr)
     return dir;
 

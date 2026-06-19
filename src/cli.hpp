@@ -1,6 +1,7 @@
 #pragma once
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 class PackageDB;
 

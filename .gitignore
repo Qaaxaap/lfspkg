@@ -9,6 +9,7 @@ po/Makefile
 *.o
 *.lo
 *.la
+*.a
 .deps/
 .libs/
 

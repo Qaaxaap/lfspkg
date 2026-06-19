@@ -7,7 +7,8 @@
 
 #include <filesystem>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 struct PackageMeta
 {
@@ -68,11 +69,11 @@ public:
 
   void write_manifest_atomic (const std::string &name,
                               const std::vector<ManifestEntry> &entries) const;
-  std::vector<ManifestEntry>
-  read_manifest (const std::string &name) const;
+  std::vector<ManifestEntry> read_manifest (const std::string &name) const;
 
   std::map<std::string, std::string> load_owners () const;
-  void save_owners_atomic (const std::map<std::string, std::string> &owners) const;
+  void
+  save_owners_atomic (const std::map<std::string, std::string> &owners) const;
 
 private:
   std::filesystem::path root_;
@@ -81,4 +82,4 @@ private:
 std::filesystem::path default_db_root ();
 std::filesystem::path default_target_root ();
 
-}
+} // namespace lfspkg

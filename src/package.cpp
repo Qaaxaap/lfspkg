@@ -7,7 +7,8 @@
 #include <set>
 #include <stdexcept>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 namespace fs = std::filesystem;
 
@@ -36,11 +37,12 @@ collect_manifest_from_stage (const fs::path &stage)
     }
 
   std::sort (out.begin (), out.end (),
-             [] (const ManifestEntry &a, const ManifestEntry &b) {
-               if (a.installPath == b.installPath)
-                 return a.type < b.type;
-               return a.installPath < b.installPath;
-             });
+             [] (const ManifestEntry &a, const ManifestEntry &b)
+               {
+                 if (a.installPath == b.installPath)
+                   return a.type < b.type;
+                 return a.installPath < b.installPath;
+               });
   return out;
 }
 
@@ -91,7 +93,8 @@ backup_existing_if_needed (const PackageDB &db, const fs::path &targetRoot,
 static void
 rollback_copy (const fs::path &targetRoot, const RollbackState &rb)
 {
-  for (auto it = rb.createdLeafs.rbegin (); it != rb.createdLeafs.rend (); ++it)
+  for (auto it = rb.createdLeafs.rbegin (); it != rb.createdLeafs.rend ();
+       ++it)
     {
       std::error_code ec;
       fs::remove (targetRoot / fs::path (*it).relative_path (), ec);
@@ -112,11 +115,12 @@ rollback_copy (const fs::path &targetRoot, const RollbackState &rb)
 
   auto dirs = rb.createdDirs;
   std::sort (dirs.begin (), dirs.end (),
-             [] (const std::string &a, const std::string &b) {
-               if (depth_of (a) != depth_of (b))
-                 return depth_of (a) > depth_of (b);
-               return a > b;
-             });
+             [] (const std::string &a, const std::string &b)
+               {
+                 if (depth_of (a) != depth_of (b))
+                   return depth_of (a) > depth_of (b);
+                 return a > b;
+               });
   for (const auto &path : dirs)
     {
       std::error_code ec;
@@ -192,17 +196,19 @@ remove_obsolete_entries (const std::vector<ManifestEntry> &oldManifest,
     }
 
   std::sort (oldLeafs.begin (), oldLeafs.end (),
-             [] (const std::string &a, const std::string &b) {
-               if (depth_of (a) != depth_of (b))
-                 return depth_of (a) > depth_of (b);
-               return a > b;
-             });
+             [] (const std::string &a, const std::string &b)
+               {
+                 if (depth_of (a) != depth_of (b))
+                   return depth_of (a) > depth_of (b);
+                 return a > b;
+               });
   std::sort (oldDirs.begin (), oldDirs.end (),
-             [] (const std::string &a, const std::string &b) {
-               if (depth_of (a) != depth_of (b))
-                 return depth_of (a) > depth_of (b);
-               return a > b;
-             });
+             [] (const std::string &a, const std::string &b)
+               {
+                 if (depth_of (a) != depth_of (b))
+                   return depth_of (a) > depth_of (b);
+                 return a > b;
+               });
 
   for (const auto &path : oldLeafs)
     {
@@ -268,8 +274,12 @@ apply_install_or_upgrade (PackageDB &db, const PackageSpec &spec,
             built_deps[dep] = db.read_meta (dep).version;
         }
 
-      PackageMeta meta{ spec.name, spec.version, now_iso8601_local (),
-                        spec.stage_dir.string (), spec.deps, built_deps };
+      PackageMeta meta{ spec.name,
+                        spec.version,
+                        now_iso8601_local (),
+                        spec.stage_dir.string (),
+                        spec.deps,
+                        built_deps };
       db.write_meta_atomic (meta);
       db.write_manifest_atomic (spec.name, newManifest);
       db.save_owners_atomic (owners);
@@ -303,17 +313,19 @@ remove_package_files (PackageDB &db, const std::string &pkg,
     }
 
   std::sort (leafPaths.begin (), leafPaths.end (),
-             [] (const std::string &a, const std::string &b) {
-               if (depth_of (a) != depth_of (b))
-                 return depth_of (a) > depth_of (b);
-               return a > b;
-             });
+             [] (const std::string &a, const std::string &b)
+               {
+                 if (depth_of (a) != depth_of (b))
+                   return depth_of (a) > depth_of (b);
+                 return a > b;
+               });
   std::sort (dirs.begin (), dirs.end (),
-             [] (const std::string &a, const std::string &b) {
-               if (depth_of (a) != depth_of (b))
-                 return depth_of (a) > depth_of (b);
-               return a > b;
-             });
+             [] (const std::string &a, const std::string &b)
+               {
+                 if (depth_of (a) != depth_of (b))
+                   return depth_of (a) > depth_of (b);
+                 return a > b;
+               });
 
   for (const auto &path : leafPaths)
     {
@@ -453,4 +465,4 @@ find_stale_packages (const PackageDB &db)
   return stale;
 }
 
-}
+} // namespace lfspkg

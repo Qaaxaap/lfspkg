@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-namespace lfspkg {
+namespace lfspkg
+{
 
 bool looks_like_elf_candidate (const std::filesystem::path &p);
 
